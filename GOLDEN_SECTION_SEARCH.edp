@@ -1,0 +1,44 @@
+while (abs(pmax - p0) < tol)
+{  
+    if(Jp1(u[], f1q1[], f2q1[]) < Jp2(u[], f1q2[], f2q2[])) // Jp1 < Jp2
+    {
+        pmax = p2; // Set p2 = pmax
+        p1 = p2; // p2 moves to p1 
+        p1 = pmax - (pmax - p0)/r; // Update the position of p1
+        Jp1(u[], f1q1[], f2q1[]); // Compute J with new p1
+        minp = min(p0, p2);
+    }    
+    else // Jp1 > Jp2 
+    {
+        p0 = p1; // Set p1 = p0
+        p2 = p1; // p1 moves to p2
+        p2 = p0 + (pmax - p0)/r; // Update the position of p2
+        Jp2(u[], f1q2[], f2q2[]); // Compute J with new p2 
+        minp = min(p1, pmax); 
+    }
+}
+
+
+
+
+
+
+// while (abs(pmax - p0) < tol)
+// {  
+//     if(Jp1(nablau1[], u[]) < Jp2(nablau2[], u[])) // Jp1 < Jp2
+//     {
+//         pmax = p2; // Set p2 = pmax
+//         p1 = p2; // p2 moves to p1 
+//         p1 = pmax - (pmax - p0)/r; // Update the position of p1
+//         Jp1(nablau1[], u[]); // Compute J with new p1
+//         minp = min(p0, p2);
+//     }    
+//     else // Jp1 > Jp2 
+//     {
+//         p0 = p1; // Set p1 = p0
+//         p2 = p1; // p1 moves to p2
+//         p2 = p0 + (pmax - p0)/r; // Update the position of p2
+//         Jp2(nablau2[], u[]); // Compute J with new p2 
+//         minp = min(p1, pmax); 
+//     }
+// }

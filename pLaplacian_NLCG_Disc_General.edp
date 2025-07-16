@@ -1,0 +1,37 @@
+/*Solving equation
+p-Laplace equation: -div(|nabla u|^(p-2)*nabla u) = f.
+Boundary: Dirichlet boundary conditions.
+Methods: Non-linear Conjugate Gradient.
+Domain: Omega = B(0,1).
+The exact solution: uex =  ((p-1)/p)*((0.5)^(1/(p-1)))*(1 - (x^2 + y^2)^(p/(2*p-2))) [Example 1: CZ17].
+*/
+/*Define Data*/
+real L2error;
+real p0, p, p00, rho;
+p = 1000.0;
+int n = 50; 
+rho = 1.0;
+real fact;
+fact = 0.5/rho + 2.0;
+/*Define RHS and the Exact solution*/
+real R = 1.0;
+border C(t=0, 2*pi){x = R*cos(t); y = R*sin(t); label = 1;}
+mesh Th = buildmesh(C(n)); //B(0,1)
+func uex = ((p-1)/p)*((0.5)^(1/(p-1)))*(1 - (x^2 + y^2)^(p/(2*p-2)));
+func f = 1.0;
+func ubc = uex;
+real u1 = 0;
+func lambda = ((1/R)*(R^2 - x^2)*(R^2 - y^2))^(0.00001);
+//func Juexact = pi*((0.5)^(1/(p-1)))*((p-1)^2)/(p*(2-3*p)); 
+// Finite Element Space
+fespace Vh(Th, P1);
+Vh u0, u, v, varphi, w, uhex;
+//We set the boundary condition corresponding to p0 = 2 for solving Poisson equation.
+p0 = 2.0;
+p00 = p0;
+p0 = min(p0*fact, p);
+include "Continuity.edp"
+L2error = int2d(Th)((u - uex)*(u - uex));
+cout << "********* L2 error for p = " << p0 << " is " << sqrt(L2error) << "." << endl;
+//cout << "********* The coefficient in the function lambda is: " << coef << endl;
+plot(u);

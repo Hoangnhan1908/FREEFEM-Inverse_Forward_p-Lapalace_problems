@@ -1,0 +1,39 @@
+/* Solving equation
+p-Laplace equation: -div(|nabla u|^(p-2)*nabla u) = f.
+Boundary: Non-homogeneous Dirichlet boundary conditions.
+Methods: Non-linear Conjugate Gradient.
+Domain: Omega = [0,1]^2.
+The exact solution: uex = (x^2 + y^2)^((p-2)/(2*p - 2)).
+*/
+// Define Data 
+real L2error;
+real p0, p, p00, rho;
+real fact, coef;
+coef = 16; //Nhan: Always <= 5000.
+p = 500.0;
+int n = 50;
+rho = 1.0;
+fact = 0.5/rho + 1.0;
+// Define RHS and the Exact solution
+int[int] labs = [1,1,1,1];
+mesh Th = square(n, n, label = labs); // [0,1]^2
+func uex = (x^2 + y^2)^((p-2)/(2*p - 2));
+func ubc = (x^2 + y^2)^((p - 2)/(2*p - 2));
+func f = 0.0; // RHS
+func lambda = (coef*x*(1 - x)*y*(1 - y))^(0.00001);//Nhan: The small lambda is necessary
+// Finite Element Space
+fespace Vh(Th, P1);
+Vh u0, u, v, varphi, w, uhex;
+//We set the boundary condition corresponding to p0 = 2 for solving Poisson equation.
+p0 = 2.0;
+p00 = p0;
+p0 = min(p0*fact, p);
+func u1 = (x^2)^((p0-2)/(2*p0 -2));// u(x,0)
+func u2 = (y^2 + 1)^((p0-2)/(2*p0 -2));// u(1,y)
+func u3 = (x^2 + 1)^((p0-2)/(2*p0 -2));// u(x,1)
+func u4 = (y^2)^((p0-2)/(2*p0 -2));// u(0,y)
+include "Continuity.edp"
+L2error = int2d(Th)((u - uex)*(u - uex));
+cout << "********* L2 error for p = " << p0 << " is " << sqrt(L2error) << "." << endl;
+cout << "********* The coefficient in the function lambda is: " << coef << endl;
+plot(u);

@@ -1,0 +1,15 @@
+/* Solving equation
+p-Laplace equation: -div(|nabla u|^(p-2)*nabla u) = f.
+Boundary: Non-homogeneous Dirichlet boundary conditions.
+Methods: Non-linear Conjugate Gradient and Golden Section Search.
+Domain: Omega = [0,1]^2.
+The exact solution: uex = (x^2 + y^2)^((p-2)/(2*p - 2)).
+*/
+include "INPUT_DATA.edp"
+include "Continuity.edp"
+L2error = int2d(Th)((u - uex)*(u - uex));
+cout << "********* L2 error for p = " << p0 << " is " << sqrt(L2error) << "." << endl;
+cout << "********* CPU[s] = " << clock()-cpu << endl ;
+cout << "********* The minimum value of p is: " << minp << "." << endl;
+cout << "********* The error between minp and q: " << abs(minp - q) << "." << endl;
+plot(u);

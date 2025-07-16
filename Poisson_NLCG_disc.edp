@@ -1,0 +1,78 @@
+/*Solving equation
+Possion equation: -(u_xx + u_yy) = f.
+Boundary: Dirichlet boundary conditions.
+Methods: Non-linear Conjugate Gradient.
+Domain: Omega = B(0,0.25).
+The exact solution: uex =  x^2 + y^2.
+*/
+/*Define Data*/
+real L2error, Juerror;
+real p = 2.0;
+int n = 150; // mesh discretization
+/*Define RHS and the Exact solution*/
+real R = 0.25;
+border C(t=0, 2*pi){x = R*cos(t); y = R*sin(t); label = 1;}
+mesh Th = buildmesh(C(n)); //B(0,1)
+func uex = x^2 + y^2; // It has to satisfy boundary cond.
+real ubc = R*R; // Dirichlet value //MARCO
+func f = -4.0; //RHS
+real Juexact = 3*pi*R^4; // MARCO
+
+/*Finite Element Space*/
+fespace Vh(Th, P1);
+Vh u, v, varphi, u0, w;
+/*J(u) = 1/2 \int_\Omega |\nabla u|^2 - \int_\Omega f*u*/
+func real J (real[int] & ucoeff)
+{
+    Vh uloc;
+    uloc[] = ucoeff;
+    real k = int2d(Th)(0.5*(dx(uloc)*dx(uloc)+dy(uloc)*dy(uloc)))
+      -int2d(Th)(f*uloc);
+    return k;
+}
+/* Gradient J^R(u) */
+func real[int] dJR(real[int] & ucoeff)
+{
+    Vh uloc;
+    uloc[] = ucoeff;
+    varf F(uh, varphi) = int2d(Th)(dx(uloc)*dx(varphi)+dy(uloc)*dy(varphi))
+      -int2d(Th)(f*varphi)
+    + on(1, uh = 0);
+    real[int] r = F(0,Vh);
+    return r;
+}
+/*Define the function Htilde of JR*/
+varf HtildeJR(w,v) = int2d(Th)((dx(u0)^2 + dy(u0)^2)^((p-2)/2)*
+                               (dx(w)*dx(v) + dy(w)*dy(v)))
+  + on(1, w=0);
+/*Compute the corresponding matrix*/
+matrix H = HtildeJR(Vh,Vh,solver=Cholesky,factorize=1);
+func real[int] Precond(real[int] & vec)
+{
+    real[int] r = H^(-1)*vec;
+    return r;
+}
+/*Solve Poisson Problem*/
+solve Poisson(u0,v) = int2d(Th)(dx(u0)*dx(v)+dy(u0)*dy(v))
+- int2d(Th)(f*v)
++ on(1, u0 = ubc);
+/* Solving by Non-linear Conjugate Gradient*/
+// MARCO if you now use u=u0, you are "cheating", because you take as initial
+// solution the solution given by Galerkin method. So, suppose you have no
+// idea and take as initial solution u0 which simply satisfies boundary
+// conditions
+u = (x^2+y^2-R^2)^3 + ubc;
+// and try without the preconditioner
+cout << "\n WITHOUT PRECONDITIONER\n" << endl;
+NLCG(dJR, u[], nbiter = 150, eps = -1e-8);
+// and now with the preconditioner
+u = (x^2+y^2-R^2)^3 + ubc;
+cout << "\n WITH PRECONDITIONER\n" << endl;
+NLCG(dJR, precon = Precond, u[], nbiter = 150, eps = -1e-8);
+/* Compute the error */
+real L2 = int2d(Th)((u-uex)*(u-uex));
+L2error = sqrt(L2);
+Juerror = abs(J(u[]) - Juexact);
+cout << "\n L^2 error: " << L2error << "\n" << endl;
+cout << "\n Ju error: " << Juerror << "\n" << endl;
+plot(u);

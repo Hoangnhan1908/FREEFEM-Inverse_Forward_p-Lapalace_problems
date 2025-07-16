@@ -1,0 +1,124 @@
+/* Solving equation
+p-Laplace equation: -div(|nabla u|^(p-2)*nabla u) = f.
+Boundary: Non-homogeneous Dirichlet boundary conditions.
+Methods: Non-linear Conjugate Gradient.
+Domain: Omega = [0,1]^2.
+The exact solution: uex = (x^2 + y^2)^((p-2)/(2*p - 2)).
+*/
+// Define Data 
+real L2error;
+real p0, p, p00, rho, pc, pd;
+real tol = 1e-5;
+real r = 0.5*(5^(0.5) + 1);
+p = 200.0;
+int n = 50;
+rho = 1.0;
+real fact = 0.5/rho + 1.0;
+// Define RHS and the Exact solution
+mesh Th = square(n, n); // [0,1]^2
+func uex = (x^2 + y^2)^((p-2)/(2*p - 2));
+func ubc = (x^2 + y^2)^((p - 2)/(2*p - 2));
+func f = 0.0; // RHS
+func lambda = (16*x*(1 - x)*y*(1 - y))^(0.0001);//Nhan: The small lambda is necessary
+// Finite Element Space
+fespace Vh(Th, P1);
+Vh u0, u, v, varphi, w, uhex;
+//We set the boundary condition corresponding to p0 = 2 for solving Poisson equation.
+p0 = 2.0;
+p00 = p0;
+p0 = min(p0*fact, p);
+pc = p - (p - p0)/r;
+pd = p0 + (p - p0)/r;
+func u1 = (x^2)^((p0-2)/(2*p0 -2));// u(x,0)
+func u2 = (y^2 + 1)^((p0-2)/(2*p0 -2));// u(1,y)
+func u3 = (x^2 + 1)^((p0-2)/(2*p0 -2));// u(x,1)
+func u4 = (y^2)^((p0-2)/(2*p0 -2));// u(0,y)
+//Solve Poisson for p0 = 2;
+solve Poisson(u, v) = int2d(Th)(dx(u)*dx(v) + dy(u)*dy(v))
+- int2d(Th)(f*v)
++ on(1, u = u1) + on(2, u = u2)
++ on(3, u = u3) + on(4, u = u4);
+if(p0 == 2) exit;
+u0 = u;
+while (p0 <= p)
+{
+    func real[int] dJR(real[int] & ucoeff)
+    {
+        Vh uloc;
+        uloc[] = ucoeff;
+        varf F(uh, varphi) = int2d(Th)((dx(uloc)*dx(uloc)+dy(uloc)*dy(uloc))^((p0-2)/2)*(dx(uloc)*dx(varphi)+dy(uloc)*dy(varphi)))
+        - int2d(Th)(f*varphi)
+        + on(1,2,3,4, uh = 0);
+        real[int] r = F(0,Vh);
+        return r;
+    }
+    // Define the function Htilde of JR
+    varf HtildeJR(w,v) = int2d(Th)((dx(u)*dx(u) + dy(u)*dy(u))^((p0-2)/2) *
+                                (dx(w)*dx(v) + dy(w)*dy(v)))
+    + on(1,2,3,4, w=0);
+    // Compute the corresponding matrix
+    matrix H = HtildeJR(Vh, Vh, solver = Cholesky, factorize = 1);
+    func real[int] Precond(real[int] & vec)
+    {
+        real[int] r = H^(-1)*vec;
+        return r;
+    }
+    cout << "*** Trying to solve with p0 = " << p0 << endl;
+    int conv = NLCG(dJR, precon = Precond, u[], nbiter = 50, eps = -1e-8);
+    if(conv != 1)//The non-convergence case
+    {
+        p0 = p00; // Restore the previous value of p0
+        u = u0;
+        rho = rho + 1.0;
+        fact = 0.5/rho + 1.0; // fact > 1 always.
+        cout << "***** The value of p0 = " << p0 << endl;
+        cout << "***** The value of p00 = " << p00 << endl;
+    }
+    else //The convergence case
+    {   
+        if(p0 == p) break; //(Satisfied the condition in while-loop)
+        p00 = p0; // Update the last p00
+        u0 = u; // Update the last u0
+        p0 = min(p0*fact, p); // increase p0 and compute with it.
+    }
+    u = lambda*u0 + (1 - lambda)*ubc;
+    while (abs(p - p0) < tol)
+    {
+        func real Jpc(real[int] & ucoeff)
+        {
+            Vh uloc;
+            uloc[] = ucoeff;
+            real Jc = int2d(Th)((dx(uloc) + dy(uloc))^((pc - 2)/2)*(dx(uloc) + dy(uloc))*(dx(uloc) + dy(uloc)) - (1/pc)*(dx(uloc) + dy(uloc))^(pc/2));
+            return Jc;
+        }
+        Jpc(u[]);// Set Jpc = Jpc(upc)
+        func real Jpd(real[int] & ucoeff)
+        {
+            Vh uloc;
+            uloc[] = ucoeff;
+            real Jd = int2d(Th)((dx(uloc) + dy(uloc))^((pd - 2)/2)*(dx(uloc) + dy(uloc))*(dx(uloc) + dy(uloc)) - (1/pd)*(dx(uloc) + dy(uloc))^(pd/2));
+            return Jd;
+        }
+        Jpd(u[]); // Set Jpd = Jpd(upd)
+        if(Jpc(u[]) < Jpd(u[])) // Jpc < Jpd
+        {
+            p = pd; // Set pd = pb
+            pc = pd; // pd moves to pc 
+            pc = p - (p - p0)/r; // Update the position of pc
+            Jpc(u[]); // Compute J with new pc
+        }
+        else // Jpc > Jpd 
+        {
+            p0 = pc; // Set pc = pa
+            pd = pc; // pc moves to pd
+            pd = p0 + (p - p0)/r; // Update the position of pd
+            Jpd(u[]); // Compute J with new pd
+        }
+    }
+}
+
+L2error = int2d(Th)((u - uex)*(u - uex));
+cout << "********* L2 error for p = " << p0 << " is " << sqrt(L2error) << "." << endl;
+cout << "********* The minimum value of p is: " << min(pc, pd) << "." << endl;
+
+plot(u);

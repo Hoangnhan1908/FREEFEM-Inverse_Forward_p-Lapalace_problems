@@ -1,0 +1,59 @@
+/* Solving equation
+p-Laplace equation: -div(|nabla u|^(p-2)*nabla u) = f.
+Boundary: Non-homogeneous Dirichlet boundary conditions.
+Methods: Non-linear Conjugate Gradient.
+Domain: Omega = [0,1]^2.
+The exact solution: uex = (x^2 + y^2)^((p-2)/(2*p - 2)).
+*/
+// Define Data
+real L2error;
+real p0, p, p00, rho, q, pmax, pmin, potim, cpu;
+real r = ((5.0)^(1.0/2.0) + 1.0)/2.0;
+int numbiter = 25;
+q = 15.0; // target value
+pmin = 2.0;
+pmax = 20.0;
+int m, n; 
+m = 50;
+n = 50;
+real NLCGtol = (1.0/n)^2/10;
+real tol = 1e-2;
+rho = 1.0;
+real fact = 0.5/rho + 1.0;
+real a,b,c,d;
+a = 0.5;
+b = 1.5;
+c = 0.5;
+d = 1.5;
+// Define RHS and the Exact solution
+mesh Th = square(n, m, [a + (b - a)*x, c + (d - c)*y]); // [0.5,1.5]^2
+func uex = (x^2 + y^2)^((p-2)/(2*p - 2));
+func f = 0.0; // RHS
+p0 = 2.0;
+func u1 = (x^2 + c^2)^((p0-2)/(2*p0 -2));// u(x,0.5)
+func u2 = (y^2 + b^2)^((p0-2)/(2*p0 -2));// u(1.5,y)
+func u3 = (x^2 + d^2)^((p0-2)/(2*p0 -2));// u(x,1.5)
+func u4 = (a^2 + y^2)^((p0-2)/(2*p0 -2));// u(0.5,y)
+func lambda = (16*(x - a)*(b - x)*(y - c)*(d - y));
+// Finite Element Space
+fespace Vh(Th, P1);
+Vh u0, u, v, varphi, w, uhex, ubc, uq, up1, up2, uPoisson;
+solve Poisson(uPoisson, v) = int2d(Th)(dx(uPoisson)*dx(v) + dy(uPoisson)*dy(v))
+- int2d(Th)(f*v)
++ on(1, uPoisson = u1) + on(2, uPoisson = u2)
++ on(3, uPoisson = u3) + on(4, uPoisson = u4);
+p = q;
+include "continuityp.edp";
+uq = u;
+L2error = int2d(Th)((uq - uex)*(uq - uex));
+cout << "*****************************************" << endl;
+cout << "*** L2 error for q = " << p0 << " is " << sqrt(L2error) << "." << endl;
+cout << "*****************************************" << endl;
+cout << "************ Computing q has completed ***************" << endl;
+// u now is the solution of q-Laplace problem
+// Compute Lambda(f) by using uq
+macro Lambdaf1(uq) ((dx(uq)*dx(uq) + dy(uq)*dy(uq))^((q-2)/2))*dx(uq) //
+macro Lambdaf2(uq) ((dx(uq)*dx(uq) + dy(uq)*dy(uq))^((q-2)/2))*dy(uq) //
+cout << int2d(Th)(Lambdaf1(uq)*dx(uq)+Lambdaf2(uq)*dy(uq)) << endl;
+cout << int1d(Th,1,2,3,4)([Lambdaf1(uq), Lambdaf2(uq)]'*[N.x, N.y]*uq) << endl;
+cout << "The difference between J and Jbound is: " << abs(int2d(Th)(Lambdaf1(uq)*dx(uq)+Lambdaf2(uq)*dy(uq))  - int1d(Th,1,2,3,4)([Lambdaf1(uq), Lambdaf2(uq)]'*[N.x, N.y]*uq)) << endl;

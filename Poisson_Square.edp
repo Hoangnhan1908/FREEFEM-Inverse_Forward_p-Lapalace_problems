@@ -1,0 +1,27 @@
+/* Solving equation 
+Possion equation: -(u_xx + u_yy) = f.
+Boundary: Dirichlet boundary conditions.
+Methods: Standard Freefem++. 
+Domain: Omega = [0,1]^2.
+The exact solution: uex = 1.0/pi/pi*sin(pi*x)*sin(pi*y).
+*/  
+/*Define Data*/
+real L2error;
+real p = 2.0;
+int n = 500; // mesh discretization
+/*Define RHS and the Exact solution*/
+mesh Th = square(n, n); // [0,1]^2
+func uex = 1.0/pi/pi*sin(pi*x)*sin(pi*y); // It has to satisfy boundary cond.
+real ubc = 0.0; // Dirichlet value
+func f = 2*sin(pi*x)*sin(pi*y); //RHS
+/*Finite Element Space*/
+fespace Vh(Th, P1);
+Vh u, v;
+solve Poisson(u,v) = int2d(Th)(dx(u)*dx(v)+dy(u)*dy(v))
+- int2d(Th)(f*v)
++ on(1, u = ubc) + on(2, u = ubc)
++ on(3, u = ubc) + on(4, u = ubc);
+real L2 = int2d(Th)((u-uex)*(u-uex));
+L2error = sqrt(L2);
+cout << "\n L^2 error: " << L2error << "\n" << endl;
+plot(u);

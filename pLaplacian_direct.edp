@@ -1,0 +1,58 @@
+/* Solving equation
+p-Laplace equation: -div(|nabla u|^(p-2)*nabla u) = f.
+Boundary: Non-homogeneous Dirichlet boundary conditions.
+Methods: Non-linear Conjugate Gradient.
+Domain: Omega = [0,1]^2.
+The exact solution: uex = (x^2 + y^2)^((p-2)/(2*p - 2)).
+*/
+
+// Define Data
+real L2error;
+real p0, p, p00, rho, q, pmax, pmin, potim, cpu, pow;
+pow = 0.001;
+real r = ((5.0)^(1.0/2.0) + 1.0)/2.0;
+int count;
+int numbiter = 15;
+int m, n; 
+m = 100;
+n = 100;
+real NLCGtol = (1.0/n)^2/10;
+real tol = 1e-2;
+rho = 1.0;
+real fact = 0.5/rho + 1.0;
+real a,b,c,d;
+a = 0;
+b = 1.0;
+c = 0;
+d = 1.0;
+p = 15.0;
+// Define RHS and the Exact solution
+mesh Th = square(n, m, [a + (b - a)*x, c + (d - c)*y]); // [0.5,1.5]^2
+plot(Th, wait = true);
+func uex = (x^2 + y^2)^((p-2)/(2*p - 2));
+func f = 0.0; // RHS
+// Finite Element Space
+fespace Vh(Th, P1);
+Vh u0, u, v, varphi, w, uhex, ubc, uPoisson;
+p0 = 2.0;
+func u1 = (x^2)^((p0-2)/(2*p0 -2));// u(x,0)
+func u2 = (y^2 + 1)^((p0-2)/(2*p0 -2));// u(1,y)
+func u3 = (x^2 + 1)^((p0-2)/(2*p0 -2));// u(x,1)
+func u4 = (y^2)^((p0-2)/(2*p0 -2));// u(0,y)
+func lambda = (1/(((a+b)/2 - a)*(b - (b+a)/2)*((c+d)/2 - c)*(d - (c+d)/2)))*(x - a)*(b - x)*(y - c)*(d - y);
+solve Poisson(uPoisson, v) = int2d(Th)(dx(uPoisson)*dx(v) + dy(uPoisson)*dy(v))
+- int2d(Th)(f*v)
++ on(1, uPoisson = u1) + on(2, uPoisson = u2)
++ on(3, uPoisson = u3) + on(4, uPoisson = u4);
+include "continuityp.edp";
+//include "continuityp_without_Precond.edp";
+// solution of p-Laplace problem
+L2error = int2d(Th)((u - uex)*(u - uex));
+cout << "*****************************************" << endl;
+cout << "*** L2 error for p = " << p0 << " is " << sqrt(L2error) << "." << endl;
+cout << "*****************************************" << endl;
+cout << "The number of the continuation step = " << count << endl;
+cout << "********* CPU[s] = " << clock()-cpu << endl ;
+cout << "******************* N = " << n << endl;
+cout << "***************** The number of iteration: " << numbiter << endl;
+plot(u);

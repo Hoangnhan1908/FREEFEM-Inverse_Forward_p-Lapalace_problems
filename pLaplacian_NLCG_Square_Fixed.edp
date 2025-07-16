@@ -1,0 +1,74 @@
+/* Solving equation 
+ p-Laplace equation: -div(|nabla u|^(p-2)*nabla u) = f.
+ Boundary: Non-homogeneous Dirichlet boundary conditions.
+ Methods: Non-linear Conjugate Gradient. 
+ Domain: Omega = [0,1]^2.
+ The exact solution: uex = (x^2 + y^2)^((p-2)/(2*p - 2)).
+ */  
+/* Define Data */
+real L2error, Juerror;
+real p = 3.0;
+int n = 100; // mesh discretization
+/*Define RHS and the Exact solution*/
+mesh Th = square(n, n); // [0,1]^2
+func uex = (x^2 + y^2)^((p-2)/(2*p - 2)); // It has to satisfy boundary cond.
+func f = 0.0; //RHS
+func Juexact = (1.0/p)*(((p-2)/(p-1))^p)*((-2.0*pi)/(p-1));
+/*Non-Homogeneous Dirichlet boundary condition*/
+func u1 = (x^2)^((p-2)/(2*p -2));// u(x,0)
+func u2 = (1+y^2)^((p-2)/(2*p -2));// u(1,y)
+func u3 = (x^2 + 1)^((p-2)/(2*p -2));// u(x,1)
+func u4 = (y^2)^((p-2)/(2*p -2));// u(0,y)
+
+
+
+
+/*Finite Element Space*/
+fespace Vh(Th, P1);
+Vh u, v, varphi, u0, w;
+/*Define of J(u) */
+func real J(real[int] & ucoeff)
+{
+  Vh uloc;
+  uloc[] = ucoeff;
+  real k = int2d(Th)(( dx(uloc)*dx(uloc) + dy(uloc)*dy(uloc))^(p/2)/p) - int2d(Th)(f*uloc);
+  return k;
+}
+/* Gradient J^R(u) */
+func real[int] dJR(real[int] & ucoeff) 
+{
+  Vh uloc;
+  uloc[] = ucoeff;
+  varf F(uh,varphi) = int2d(Th)((dx(uloc)*dx(uloc)+dy(uloc)*dy(uloc))^((p-2)/2)*
+                                 (dx(uloc)*dx(varphi)+dy(uloc)*dy(varphi))-f*varphi)
+    + on(1,2,3,4, uh = 0);
+  real[int] r = F(0,Vh);
+  return r;
+}
+/*Solve Poisson Problem*/
+solve Poisson(u0,v) = int2d(Th)((dx(u0)*dx(v)+dy(u0)*dy(v)))
+- int2d(Th)(f*v)
++ on(1, u0 = u1) + on(2, u0 = u2)
++ on(3, u0 = u3) + on(4, u0 = u4);
+/*Define the function Htilde of JR*/
+varf HtildeJR(w,v) = int2d(Th)( (dx(u0)*dx(u0) + dy(u0)*dy(u0))^((p-2)/2) *
+                               (dx(w)*dx(v) + dy(w)*dy(v)))
+  + on(1,2,3,4,w=0);
+/*Compute the corresponding matrix*/
+matrix H = HtildeJR(Vh,Vh,solver=Cholesky,factorize=1);
+func real[int] Precond(real[int] & vec)
+{
+  real[int] r = H^(-1)*vec;
+  return r;
+}
+/* Solving by Non-linear Conjugate Gradient*/
+u = u0;
+cout << "\n WITH PRECONDITIONER\n" << endl;
+NLCG(dJR, precon = Precond, u[], nbiter = 150, eps = -1e-8);
+/* Compute the error */
+real L21 = int2d(Th)((u-uex)*(u-uex));
+real L21error = sqrt(L21);
+real Juerror1 = abs(J(u[]) - Juexact);
+cout << "\n L^2 error: " << L21error << "\n" << endl;
+cout << "\n Ju error: " << Juerror1 << "\n" << endl;
+plot(u);
